@@ -1,6 +1,7 @@
 const config = require('../config');
 const { cmd } = require('../command');
 const runtime = require('../lib/functions');
+const os = require("os");
 
 // ⚡ PING COMMAND
 cmd({
@@ -43,7 +44,7 @@ cmd({
 },
 async (conn, mek, m, { from, reply }) => {
     try {
-        const botRuntime = runtime(process.uptime());
+        const botRuntime = ${runtime(process.uptime())};
         
         const uptimeMessage = `*⏰ BOT RUNTIME*\n\n` +
                               `⏱️ *Uptime:* ${botRuntime}\n\n` +
