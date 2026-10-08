@@ -145,47 +145,54 @@ async (conn, mek, m, { from, q, reply }) => {
                 const infoUrl = `https://ck-api-v1.vercel.app/movie/cartoon/info?url=${encodeURIComponent(selectedCartoon.url)}`;
                 const { data: infoResponse } = await axios.get(infoUrl);
 
-                const cartoonInfo = infoResponse?.results || infoResponse?.data || infoResponse;
-
-                if (!cartoonInfo) {
+                if (!infoResponse || (!infoResponse.status && !infoResponse.success)) {
                     await sendReact("❌");
                     return reply("❌ *Failed to fetch details for this cartoon.* ⚠️");
                 }
 
-                let caption = `🌟 \`${cartoonInfo.title || selectedCartoon.title || "Cartoon"}\`\n\n`;
-                caption += `📅 \`YEAR:\` *${cartoonInfo.year || "N/A"}*\n`;
-                caption += `⭐ \`IMDB:\` *${cartoonInfo.imdb_rating || cartoonInfo.imdb || "N/A"}*\n`;
-                caption += `💿 \`QUALITY:\` *${cartoonInfo.quality || "N/A"}*\n\n`;
-                caption += `⚡ *Please select your episode/file to download:*\n`;
+                // New Response Object Structure parsing
+                const cartoonInfo = infoResponse.result || infoResponse.data || infoResponse;
+                const details = cartoonInfo.details || {};
+                const castList = cartoonInfo.cast || [];
 
-                // Collect available download page links from cartoonInfo
-                let rawLinks = [];
-                if (cartoonInfo.links && cartoonInfo.links.length > 0) {
-                    rawLinks = cartoonInfo.links;
-                } else if (cartoonInfo.url) {
-                    rawLinks = [{ name: cartoonInfo.title || "Download Link", url: cartoonInfo.url }];
-                } else {
-                    rawLinks = [{ name: selectedCartoon.title || "Download Link", url: selectedCartoon.url }];
+                // Formatting Movie Detail Message
+                let caption = `🌟 \`${cartoonInfo.title || selectedCartoon.title || "Cartoon"}\`\n\n`;
+                caption += `🎬 \`DIRECTOR:\` *${details.director || "N/A"}*\n`;
+                caption += `📅 \`YEAR:\` *${details.release_year || "N/A"}*\n`;
+                caption += `⭐ \`IMDB:\` *${details.imdb_rating || "N/A"}*\n`;
+                caption += `💿 \`QUALITY:\` *${details.quality || "N/A"}*\n`;
+
+                if (castList.length > 0) {
+                    const topCast = castList.slice(0, 4).map(c => `*${c.name}* (${c.character})`).join(', ');
+                    caption += `🎭 \`CAST:\` ${topCast}\n`;
                 }
 
+                if (cartoonInfo.description) {
+                    caption += `\n📝 \`STORY:\` _${cartoonInfo.description.slice(0, 200)}..._\n`;
+                }
+
+                caption += `\n⚡ *Please select your download option below:*\n`;
+
                 const dlDateNow = Date.now();
+                const targetPageUrl = cartoonInfo.download_page_url || selectedCartoon.url;
 
-                const linkRows = rawLinks.map((linkObj, i) => ({
-                    header: `📥 Option #${i + 1}`,
-                    title: `🚀 ${(linkObj.name || linkObj.title || `Option ${i + 1}`).substring(0, 45)}`,
-                    description: `💾 ${cartoonInfo.quality}`,
-                    id: `cartoon_link_${cartoonIndex}_${i}_${dlDateNow}`
-                }));
+                // Download Option Row
+                const linkRows = [{
+                    header: `📥 Download Option`,
+                    title: `🚀 [${details.quality || "FHD"}] Direct Download`,
+                    description: `💾 Tap to download full video file`,
+                    id: `cartoon_link_${cartoonIndex}_0_${dlDateNow}`
+                }];
 
-                activeCartoonSessions.set(dlDateNow, { cartoonInfo, rawLinks });
+                activeCartoonSessions.set(dlDateNow, { cartoonInfo, targetPageUrl });
 
-                // Cartoon Details Message with Native Flow Link Options
+                // Send Cartoon Details Message
                 await conn.sendMessage(from, {
                     image: { url: cartoonInfo.image || selectedCartoon.image || config.IMG_URL },
                     caption: caption,
                     footer: '👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*',
-                    optionText: '👉🏻 Select Download Option',
-                    optionTitle: '🎯 Select File / Episode',
+                    optionText: '👉🏻 Select Download',
+                    optionTitle: '🎯 Select File Quality',
                     offerText: '🏷️ 𝗖𝗞 𝗖𝗮𝗿𝘁𝗼𝗼𝗻𝘀',
                     offerCode: '👨🏻‍💻 ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ',
                     offerUrl: 'https://ck-api-v1.vercel.app',
@@ -193,7 +200,7 @@ async (conn, mek, m, { from, q, reply }) => {
                     nativeFlow: [{
                         text: '📋 Select Option',
                         sections: [{
-                            title: '⚡ Available Options',
+                            title: '⚡ Download Options',
                             rows: linkRows
                         }],
                         icon: 'default'
@@ -209,7 +216,7 @@ async (conn, mek, m, { from, q, reply }) => {
             }
         };
 
-        // 2. Link/Episode Selection Listener
+        // 2. Download Button Selection Listener
         const linkSelectionListener = async (update2) => {
             try {
                 const msg2 = update2.messages[0];
@@ -225,18 +232,16 @@ async (conn, mek, m, { from, q, reply }) => {
                 if (!activeCartoonSessions.has(dlTimestamp)) return;
                 const session = activeCartoonSessions.get(dlTimestamp);
 
-                const linkIndex = parseInt(parts[3]);
-                const selectedRawLinkObj = session.rawLinks[linkIndex];
-                const targetPageUrl = selectedRawLinkObj?.url || selectedRawLinkObj?.link || selectedRawLinkObj;
+                const targetPageUrl = session.targetPageUrl;
 
                 if (!targetPageUrl) {
                     await sendReact("❌");
-                    return reply("❌ *Selected link URL not found.* ⚠️");
+                    return reply("❌ *Download URL not found.* ⚠️");
                 }
 
                 await sendReact("⬇️");
 
-                // Fetch direct link using /movie/cartoon/dl API
+                // Fetch direct download link from /movie/cartoon/dl API
                 const dlApiUrl = `https://ck-api-v1.vercel.app/movie/cartoon/dl?url=${encodeURIComponent(targetPageUrl)}`;
                 const { data: dlResponse } = await axios.get(dlApiUrl);
 
@@ -245,7 +250,7 @@ async (conn, mek, m, { from, q, reply }) => {
                     return reply("❌ *Failed to extract direct download link from API response.* ⚠️");
                 }
 
-                // Extract direct download link from direct_links array
+                // Extract direct video link from direct_links array
                 const directLinkObj = dlResponse.direct_links[0];
                 const directDownloadUrl = directLinkObj?.link || directLinkObj?.url;
 
@@ -257,8 +262,8 @@ async (conn, mek, m, { from, q, reply }) => {
                 await sendReact("⬆️");
                 const thumb = session.cartoonInfo?.image ? await createThumbnail(session.cartoonInfo.image) : null;
 
-                // Document Title extracted from Cartoon Info / direct link response
-                const docFileName = session.cartoonInfo?.title || selectedRawLinkObj?.name || directLinkObj?.name || "Cartoon";
+                // Document File Name from Cartoon Info Title
+                const docFileName = session.cartoonInfo?.title || directLinkObj?.name || "Cartoon";
 
                 await conn.sendMessage(from, {
                     document: { url: directDownloadUrl },
