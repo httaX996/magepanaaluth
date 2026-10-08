@@ -1,5 +1,6 @@
 const config = require('../config');
-const { cmd, commands } = require('../command');
+const { cmd } = require('../command');
+const runtime = require('../lib/functions');
 
 // ⚡ PING COMMAND
 cmd({
@@ -30,6 +31,33 @@ async (conn, mek, m, { from, quoted, reply }) => {
         reply(`An error occurred: ${e.message}`);
     }
 });
+
+
+cmd({
+    pattern: "uptime",
+    alias: ["runtime", "up"],
+    desc: "Check bot runtime / uptime",
+    category: "main",
+    react: "⏰",
+    filename: __filename
+},
+async (conn, mek, m, { from, reply }) => {
+    try {
+        const botRuntime = runtime(process.uptime());
+        
+        const uptimeMessage = `*⏰ BOT RUNTIME*\n\n` +
+                              `⏱️ *Uptime:* ${botRuntime}\n\n` +
+                              `> 👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*`;
+
+        await conn.sendMessage(from, {
+            text: uptimeMessage
+        }, { quoted: ck }); 
+    } catch (err) {
+        console.error(err);
+        reply(`❌ *Error:* \`${err.message || err}\``);
+    }
+});
+
 
 const ck = {
     key: {
