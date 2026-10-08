@@ -391,7 +391,7 @@ async (conn, mek, m, { from, q, reply }) => {
                         document: { url: gdriveData.downloadUrl },
                         fileName: `${session.mInfo.title} [${targetQuality}].mp4`,
                         mimetype: mime,
-                        caption: `🎬 \`${session.mInfo.title}\`\n🎞️ \`Quality:\` *${targetQuality}*\n\n> 👨🏻‍💻 *ᴄʜᴇᴛʜ繆ᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*`
+                        caption: `🎬 \`${session.mInfo.title}\`\n🎞️ \`Quality:\` *${targetQuality}*\n\n> 👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*`
                     };
                     if (thumb) docPayload.jpegThumbnail = thumb;
                     await conn.sendMessage(from, docPayload, { quoted: ck });
