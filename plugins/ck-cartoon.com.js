@@ -93,7 +93,7 @@ async (conn, mek, m, { from, q, reply }) => {
 
         const cartoonsSlice = resultsList.slice(0, 50);
 
-        // Single list section
+        // Single list section for search results
         const cartoonRows = cartoonsSlice.map((cartoon, index) => ({
             header: `🎬 Result #${index + 1}`,
             title: `🧸 ${(cartoon.title || `Cartoon ${index + 1}`).substring(0, 45)}`,
@@ -158,42 +158,33 @@ async (conn, mek, m, { from, q, reply }) => {
                 caption += `💿 \`QUALITY:\` *${cartoonInfo.quality || "N/A"}*\n\n`;
                 caption += `⚡ *Please select your episode/file to download:*\n`;
 
-                // Fetch download direct links
-                let cartoonLink = selectedCartoon.url;
+                // Collect available download page links from cartoonInfo
+                let rawLinks = [];
                 if (cartoonInfo.links && cartoonInfo.links.length > 0) {
-                    cartoonLink = cartoonInfo.links[0].url || cartoonInfo.links[0];
+                    rawLinks = cartoonInfo.links;
                 } else if (cartoonInfo.url) {
-                    cartoonLink = cartoonInfo.url;
+                    rawLinks = [{ name: cartoonInfo.title || "Download Link", url: cartoonInfo.url }];
+                } else {
+                    rawLinks = [{ name: selectedCartoon.title || "Download Link", url: selectedCartoon.url }];
                 }
 
-                const dlUrl = `https://ck-api-v1.vercel.app/movie/cartoon/dl?url=${encodeURIComponent(cartoonLink)}`;
-                const { data: dlResponse } = await axios.get(dlUrl);
-
-                const dlData = dlResponse?.results || dlResponse?.data || dlResponse;
-
-                if (!dlData || !dlData.direct_links || !dlData.direct_links.length) {
-                    await sendReact("❌");
-                    return reply("❌ *Download links not found for this cartoon.* ⚠️");
-                }
-
-                const directLinks = dlData.direct_links;
                 const dlDateNow = Date.now();
 
-                const linkRows = directLinks.map((linkObj, i) => ({
+                const linkRows = rawLinks.map((linkObj, i) => ({
                     header: `📥 Option #${i + 1}`,
-                    title: `🚀 ${(linkObj.name || `Link ${i + 1}`).substring(0, 45)}`,
+                    title: `🚀 ${(linkObj.name || linkObj.title || `Option ${i + 1}`).substring(0, 45)}`,
                     description: `💾 ${cartoonInfo.quality}`,
                     id: `cartoon_link_${cartoonIndex}_${i}_${dlDateNow}`
                 }));
 
-                activeCartoonSessions.set(dlDateNow, { cartoonInfo, directLinks });
+                activeCartoonSessions.set(dlDateNow, { cartoonInfo, rawLinks });
 
-                // Cartoon Details Message with Native Flow Quality/Link Menu
+                // Cartoon Details Message with Native Flow Link Options
                 await conn.sendMessage(from, {
                     image: { url: cartoonInfo.image || selectedCartoon.image || config.IMG_URL },
                     caption: caption,
                     footer: '👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*',
-                    optionText: '👉🏻 Select Download',
+                    optionText: '👉🏻 Select Download Option',
                     optionTitle: '🎯 Select File / Episode',
                     offerText: '🏷️ 𝗖𝗞 𝗖𝗮𝗿𝘁𝗼𝗼𝗻𝘀',
                     offerCode: '👨🏻‍💻 ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ',
@@ -202,7 +193,7 @@ async (conn, mek, m, { from, q, reply }) => {
                     nativeFlow: [{
                         text: '📋 Select Option',
                         sections: [{
-                            title: '⚡ Available Download Files',
+                            title: '⚡ Available Options',
                             rows: linkRows
                         }],
                         icon: 'default'
@@ -235,24 +226,42 @@ async (conn, mek, m, { from, q, reply }) => {
                 const session = activeCartoonSessions.get(dlTimestamp);
 
                 const linkIndex = parseInt(parts[3]);
-                const finalSelectedLink = session.directLinks[linkIndex];
-                const finalDownloadUrl = finalSelectedLink?.url || finalSelectedLink?.link;
+                const selectedRawLinkObj = session.rawLinks[linkIndex];
+                const targetPageUrl = selectedRawLinkObj?.url || selectedRawLinkObj?.link || selectedRawLinkObj;
 
-                if (!finalDownloadUrl) {
+                if (!targetPageUrl) {
                     await sendReact("❌");
-                    return reply("❌ *Download URL not found.* ⚠️");
+                    return reply("❌ *Selected link URL not found.* ⚠️");
                 }
 
                 await sendReact("⬇️");
 
+                // Fetch direct link using /movie/cartoon/dl API
+                const dlApiUrl = `https://ck-api-v1.vercel.app/movie/cartoon/dl?url=${encodeURIComponent(targetPageUrl)}`;
+                const { data: dlResponse } = await axios.get(dlApiUrl);
+
+                if (!dlResponse || !dlResponse.success || !dlResponse.direct_links || !dlResponse.direct_links.length) {
+                    await sendReact("❌");
+                    return reply("❌ *Failed to extract direct download link from API response.* ⚠️");
+                }
+
+                // Extract direct download link from direct_links array
+                const directLinkObj = dlResponse.direct_links[0];
+                const directDownloadUrl = directLinkObj?.link || directLinkObj?.url;
+
+                if (!directDownloadUrl) {
+                    await sendReact("❌");
+                    return reply("❌ *Direct video link is empty.* ⚠️");
+                }
+
                 await sendReact("⬆️");
                 const thumb = session.cartoonInfo?.image ? await createThumbnail(session.cartoonInfo.image) : null;
 
-                // Document Title extracted from Cartoon Info / Link Name
-                const docFileName = finalSelectedLink?.name || session.cartoonInfo?.title || "Cartoon";
+                // Document Title extracted from Cartoon Info / direct link response
+                const docFileName = session.cartoonInfo?.title || selectedRawLinkObj?.name || directLinkObj?.name || "Cartoon";
 
                 await conn.sendMessage(from, {
-                    document: { url: finalDownloadUrl },
+                    document: { url: directDownloadUrl },
                     mimetype: "video/mp4",
                     fileName: `${docFileName}.mp4`,
                     jpegThumbnail: thumb,
