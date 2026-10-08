@@ -34,7 +34,7 @@ async (conn, mek, m, { from, quoted, reply }) => {
 });
 
 
-cmd({
+/*cmd({
     pattern: "uptime",
     alias: ["runtime", "up"],
     desc: "Check bot runtime / uptime",
@@ -57,7 +57,7 @@ async (conn, mek, m, { from, reply }) => {
         console.error(err);
         reply(`❌ *Error:* \`${err.message || err}\``);
     }
-});
+});*/
 
 
 const ck = {
