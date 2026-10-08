@@ -182,7 +182,7 @@ async (conn, mek, m, { from, q, reply }) => {
                 const linkRows = directLinks.map((linkObj, i) => ({
                     header: `📥 Option #${i + 1}`,
                     title: `🚀 ${(linkObj.name || `Link ${i + 1}`).substring(0, 45)}`,
-                    description: `💾 Click to download file`,
+                    description: `💾 ${cartoonInfo.quality}`,
                     id: `cartoon_link_${cartoonIndex}_${i}_${dlDateNow}`
                 }));
 
