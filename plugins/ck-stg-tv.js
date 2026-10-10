@@ -264,7 +264,6 @@ async (conn, mek, m, { from, q, reply }) => {
                     }
 
                     const serverDownloads = tvinfo2Response.data.result.downloads;
-                    // Auto select Server A (or first available, fallback to Server B)
                     let selectedServer = serverDownloads.find(s => s.name.toLowerCase().includes('server a')) || serverDownloads[0];
                     
                     if (!selectedServer) {
@@ -275,7 +274,6 @@ async (conn, mek, m, { from, q, reply }) => {
                     targetDlUrl = selectedServer.link;
                 }
 
-                // Check if targetDlUrl is Server B or pages.stagatv.com
                 const isServerB = targetDlUrl.toLowerCase().includes('server b') || targetDlUrl.includes('pages.stagatv.com');
 
                 if (isServerB) {
