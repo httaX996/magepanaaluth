@@ -65,8 +65,8 @@ async function createThumbnail(url) {
 
 cmd({
     pattern: "stgtv",
-    alias: ["tvsearch", "stagatv"],
-    desc: "Search and download TV Series from StagaTV with Native Flow Buttons",
+    alias: ["tvshow", "stgseries"],
+    desc: "Search TV Series from StagaTV with Native Flow Buttons",
     category: "movie",
     react: "📺",
     filename: __filename
@@ -106,23 +106,23 @@ async (conn, mek, m, { from, q, reply }) => {
         
         const seriesRows = seriesSlice.map((item, index) => ({
             header: `📺 Result #${index + 1}`,
-            title: `🎬 ${item.title.substring(0, 45)}`,
-             description: `✨ Year: ${item.year ? item.year : "N/A"} \vert{} Time: ${item.time ? item.time : "N/A"}`,
-            id: `stg_tv_${index}_${dateNow}`
+            title: `🎥 ${item.title.substring(0, 45)}`,
+            description: `✨ Year: ${item.year ? item.year : "N/A"} • Time: ${item.time ? item.time : "N/A"}`,
+            id: `stg_tv_sel_${index}_${dateNow}`
         }));
 
         await conn.sendMessage(from, {
             image: { url: config.IMG_URL },
-            caption: `✨ 𝗦𝗧𝗔𝗚𝗔𝗧𝗩 𝗧𝗩 𝗦𝗘𝗥𝗜𝗘𝗦 𝗦𝗘𝗔𝗥𝗖𝗛\n\n🎯 *Search Query:* \`${q}\`\n📂 *Total Found:* \`${seriesSlice.length} Results\`\n\n⚡ *Please select your desired TV series from the menu below:*\n`,
+            caption: `✨ 𝗦𝗧𝗔𝗚𝗔𝗧𝗩 𝗧𝗩 𝗦𝗘𝗥𝗜𝗘𝗦 𝗦𝗘𝗔𝗥𝗖𝗛\n\n🎯 *Search Query:* \`${q}\`\n📂 *Total Found:* \`${seriesSlice.length} Series\`\n\n⚡ *Please select your desired TV series from the menu below:*\n`,
             footer: '👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*',
-            optionText: '👉🏻 Select TV Series',
+            optionText: '👉🏻 Select Series',
             optionTitle: '📂 StagaTV Search Results',
             offerText: '🏷️ 𝗦𝘁𝗮𝗴𝗮𝗧𝗩',
             offerCode: '👨🏻‍💻 ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ',
             offerUrl: 'https://www9.stagatv.com',
             offerExpiration: Date.now() + 600000,
             nativeFlow: [{
-                text: '📋 Select TV Series',
+                text: '📋 Select Series',
                 sections: [{
                     title: '🌟 Available TV Series',
                     rows: seriesRows
@@ -136,7 +136,7 @@ async (conn, mek, m, { from, q, reply }) => {
 
         const activeEpisodeSessions = new Map();
 
-        // 1. TV Series Selection Listener
+        // 1. Series Selection Listener
         const seriesSelectionListener = async (update) => {
             try {
                 const msg = update.messages[0];
@@ -145,7 +145,7 @@ async (conn, mek, m, { from, q, reply }) => {
                 }
 
                 const selectedButtonId = extractButtonId(msg.message);
-                if (!selectedButtonId || !selectedButtonId.includes(`_${dateNow}`) || !selectedButtonId.startsWith("stg_tv_")) {
+                if (!selectedButtonId || !selectedButtonId.includes(`_${dateNow}`) || !selectedButtonId.startsWith("stg_tv_sel_")) {
                     return;
                 }
                 if (msg.key?.remoteJid !== from) {
@@ -165,44 +165,39 @@ async (conn, mek, m, { from, q, reply }) => {
                     return reply("❌ *Failed to fetch TV series details.* ⚠️");
                 }
 
-                const tv = infoResponse.data.result;
+                const tvData = infoResponse.data.result;
 
-                let caption = `🌟 \`${tv.title}\`\n\n`;
-                caption += `⭐ \`RATING:\` *${tv.rating || "N/A"}*\n`;
-                caption += `🎭 \`GENRES:\` *${tv.genres ? tv.genres.join(', ') : "N/A"}*\n`;
-                caption += `📅 \`RELEASE:\` *${tv.details?.release || "N/A"}*\n`;
-                caption += `⏳ \`DURATION:\` *${tv.details?.duration || "N/A"}*\n`;
-                caption += `🎬 \`NETWORK:\` *${tv.details?.network || "N/A"}*\n\n`;
-                caption += `📝 \`STORY:\` _${tv.synopsis ? tv.synopsis.slice(0, 160) : "N/A"}..._\n\n`;
+                let caption = `🌟 \`${tvData.title}\`\n\n`;
+                caption += `⭐ \`RATING:\` *${tvData.rating ? tvData.rating : "N/A"}*\n`;
+                caption += `🎭 \`GENRES:\` *${tvData.genres ? tvData.genres.join(', ') : "N/A"}*\n`;
+                caption += `📅 \`RELEASE:\` *${tvData.details?.release ? tvData.details.release : "N/A"}*\n`;
+                caption += `⏳ \`DURATION:\` *${tvData.details?.duration ? tvData.details.duration : "N/A"}*\n`;
+                caption += `🌐 \`NETWORK:\` *${tvData.details?.network ? tvData.details.network : "N/A"}*\n`;
+                caption += `⭐ \`STARS:\` *${tvData.details?.stars ? tvData.details.stars : "N/A"}*\n\n`;
+                caption += `📝 \`STORY:\` _${tvData.synopsis ? tvData.synopsis.slice(0, 160) : "N/A"}..._\n\n`;
                 caption += `⚡ *Please select your episode to download:*\n`;
 
                 const epDateNow = Date.now();
-                const episodes = tv.downloads || [];
 
-                if (episodes.length === 0) {
-                    await sendReact("❌");
-                    return reply("❌ *No episodes found for this TV series.* ⚠️");
-                }
-
-                const episodeRows = episodes.map((ep, i) => ({
-                    header: `📥 Episode ${i + 1}`,
-                    title: `🎬 ${ep.name.substring(0, 45)}`,
-                    description: `💾 Tap to download ${ep.name}`,
+                const episodeRows = tvData.downloads.map((ep, i) => ({
+                    header: `📥 Episode #${i + 1}`,
+                    title: `🚀 ${ep.name.substring(0, 45)}`,
+                    description: `💾 Tap to download this episode`,
                     id: `stg_ep_${seriesIndex}_${i}_${epDateNow}`
                 }));
 
-                activeEpisodeSessions.set(epDateNow, { tv, episodes });
+                activeEpisodeSessions.set(epDateNow, { tvData, downloads: tvData.downloads });
 
                 await conn.sendMessage(from, {
-                    image: { url: tv.poster || config.IMG_URL },
+                    image: { url: tvData.poster ? tvData.poster : config.IMG_URL },
                     caption: caption,
                     footer: '👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*',
                     optionText: '👉🏻 Select Episode',
-                    optionTitle: '🎯 Select Episode',
+                    optionTitle: '🎯 Select Episode Menu',
                     offerText: '🏷️ 𝗦𝘁𝗮𝗴𝗮𝗧𝗩',
                     offerCode: '👨🏻‍💻 ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ',
                     offerUrl: 'https://www9.stagatv.com',
-                    offerExpiration: Date.now() + 900000,
+                    offerExpiration: Date.now() + 600000,
                     nativeFlow: [{
                         text: '📋 Select Episode',
                         sections: [{
@@ -222,8 +217,8 @@ async (conn, mek, m, { from, q, reply }) => {
             }
         };
 
-        // 2. Episode Selection & Download Listener
-        const episodeSelectionListener = async (update2) => {
+        // 2. Episode Selection & Auto-Download Listener
+        const episodeListener = async (update2) => {
             try {
                 const msg2 = update2.messages[0];
                 if (!msg2 || !msg2.message) {
@@ -247,31 +242,27 @@ async (conn, mek, m, { from, q, reply }) => {
                 const session = activeEpisodeSessions.get(epTimestamp);
 
                 const epIndex = parseInt(parts[3]);
-                const finalEp = session.episodes[epIndex];
+                const selectedEpisode = session.downloads[epIndex];
 
                 await sendReact("⬇️");
 
-                let targetDlUrl = finalEp.link;
+                let targetDlUrl = selectedEpisode.link;
 
-                // Domain filtering: If link is from www9.stagatv.com, fetch via tvinfo2 api
-                if (targetDlUrl.includes("www9.stagatv.com")) {
-                    const tvinfo2Url = `https://ck-stagatv-api-alutheka.vercel.app/api/tvinfo2?url=${encodeURIComponent(targetDlUrl)}`;
+                // Domain Filter & Resolution for Series Episodes
+                if (selectedEpisode.link.includes('www9.stagatv.com')) {
+                    const tvinfo2Url = `https://ck-stagatv-api-alutheka.vercel.app/api/tvinfo2?url=${encodeURIComponent(selectedEpisode.link)}`;
                     const tvinfo2Response = await axios.get(tvinfo2Url);
 
-                    if (!tvinfo2Response.data.status || !tvinfo2Response.data.result?.downloads) {
-                        await sendReact("❌");
-                        return reply("❌ *Failed to fetch episode download servers from TVInfo2 API.* ⚠️");
+                    if (tvinfo2Response.data.status && tvinfo2Response.data.result && tvinfo2Response.data.result.downloads) {
+                        const sList = tvinfo2Response.data.result.downloads;
+                        // Auto select Server A, if not present take Server B or first item
+                        let chosenServer = sList.find(s => s.name.toLowerCase().includes('server a')) ||
+                                           sList.find(s => !s.name.toLowerCase().includes('server b')) ||
+                                           sList[0];
+                        if (chosenServer) {
+                            targetDlUrl = chosenServer.link;
+                        }
                     }
-
-                    const serverDownloads = tvinfo2Response.data.result.downloads;
-                    let selectedServer = serverDownloads.find(s => s.name.toLowerCase().includes('server a')) || serverDownloads[0];
-                    
-                    if (!selectedServer) {
-                        await sendReact("❌");
-                        return reply("❌ *No download servers found for this episode.* ⚠️");
-                    }
-
-                    targetDlUrl = selectedServer.link;
                 }
 
                 const isServerB = targetDlUrl.toLowerCase().includes('server b') || targetDlUrl.includes('pages.stagatv.com');
@@ -298,9 +289,9 @@ async (conn, mek, m, { from, q, reply }) => {
                 const directLink = dlResponse.data.download;
 
                 await sendReact("⬆️");
-                const thumb = await createThumbnail(session.tv.poster);
+                const thumb = await createThumbnail(session.tvData.poster);
 
-                const fileNameTitle = dlResponse.data?.title ? dlResponse.data.title : (finalEp?.name ? finalEp.name : "Episode");
+                const fileNameTitle = dlResponse.data?.title ? dlResponse.data.title : (selectedEpisode?.name ? selectedEpisode.name : "Episode");
                 const fileType = dlResponse.data?.type ? dlResponse.data.type : "mkv";
                 const fileSize = dlResponse.data?.size ? dlResponse.data.size : "Unknown";
 
@@ -311,7 +302,7 @@ async (conn, mek, m, { from, q, reply }) => {
                     mimetype: mimetype,
                     fileName: `${fileNameTitle}.${fileType}`,
                     jpegThumbnail: thumb,
-                    caption: `🎬 \`${session.tv.title} - ${finalEp.name}\`\n\n🎞️ \`Size:\` *${fileSize}*\n🎞️ \`Type:\` *${fileType.toUpperCase()}*\n\n> 👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*`
+                    caption: `📺 \`${session.tvData.title}\`\n📌 \`Episode:\` *${selectedEpisode.name}*\n🎞️ \`Size:\` *${fileSize}*\n🎞️ \`Type:\` *${fileType.toUpperCase()}*\n\n> 👨🏻‍💻 *ᴄʜᴇᴛʜᴍɪɴᴀ ᴋᴀᴠɪꜱʜᴀɴ*`
                 }, { quoted: ck });
 
                 await sendReact("✅");
@@ -323,12 +314,12 @@ async (conn, mek, m, { from, q, reply }) => {
         };
 
         conn.ev.on("messages.upsert", seriesSelectionListener);
-        conn.ev.on("messages.upsert", episodeSelectionListener);
+        conn.ev.on("messages.upsert", episodeListener);
 
-        // Clean up listeners after 15 minutes (900000 ms)
+        // Clean up listeners after 15 minutes (900000ms)
         setTimeout(() => {
             conn.ev.off("messages.upsert", seriesSelectionListener);
-            conn.ev.off("messages.upsert", episodeSelectionListener);
+            conn.ev.off("messages.upsert", episodeListener);
             activeEpisodeSessions.clear();
         }, 900000);
 
