@@ -115,7 +115,7 @@ async (conn, mek, m, { from, q, reply }) => {
         const movieRows = moviesSlice.map((movie, index) => ({
             header: `🎬 Result #${index + 1}`,
             title: `🎥 ${movie.title.substring(0, 45)}`,
-            description: `✨ Year: ${movie.year ? movie.year : "N/A"} \vert{} Time: ${movie.time ? movie.time : "N/A"}`,
+            description: `✨ Year: ${movie.year ? movie.year : "N/A"} • Time: ${movie.time ? movie.time : "N/A"}`,
             id: `stg_dl_${index}_${dateNow}`
         }));
 
