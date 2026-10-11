@@ -107,7 +107,7 @@ async (conn, mek, m, { from, q, reply }) => {
         const seriesRows = seriesSlice.map((item, index) => ({
             header: `📺 Result #${index + 1}`,
             title: `🎬 ${item.title.substring(0, 45)}`,
-             description: `✨ Year: ${movie.year ? movie.year : "N/A"} \vert{} Time: ${movie.time ? movie.time : "N/A"}`,
+             description: `✨ Year: ${item.year ? item.year : "N/A"} \vert{} Time: ${item.time ? item.time : "N/A"}`,
             id: `stg_tv_${index}_${dateNow}`
         }));
 
